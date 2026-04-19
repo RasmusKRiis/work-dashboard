@@ -1949,6 +1949,14 @@
   }
 
   function compareStateFreshness(localState, cloudState) {
+    var localPlaceholder = isPlaceholderState(localState);
+    var cloudPlaceholder = isPlaceholderState(cloudState);
+    if (localPlaceholder && !cloudPlaceholder) {
+      return "remote";
+    }
+    if (cloudPlaceholder && !localPlaceholder) {
+      return "local";
+    }
     var localSavedAt = new Date(localState.meta && localState.meta.lastSavedAt).getTime() || 0;
     var cloudSavedAt = new Date(cloudState.meta && cloudState.meta.lastSavedAt).getTime() || 0;
     if (cloudSavedAt > localSavedAt) {
@@ -1958,6 +1966,27 @@
       return "local";
     }
     return "equal";
+  }
+
+  function isPlaceholderState(candidateState) {
+    if (!candidateState || !candidateState.meta || !candidateState.settings) {
+      return false;
+    }
+
+    var tasks = Array.isArray(candidateState.tasks) ? candidateState.tasks : [];
+    var activityLog = Array.isArray(candidateState.activityLog) ? candidateState.activityLog : [];
+    var createdAt = candidateState.meta.createdAt || "";
+    var lastSavedAt = candidateState.meta.lastSavedAt || "";
+
+    return (
+      tasks.length === 0 &&
+      activityLog.length === 0 &&
+      createdAt === lastSavedAt &&
+      candidateState.settings.theme === "day" &&
+      candidateState.settings.locationQuery === "Oslo" &&
+      candidateState.settings.locationName === "Oslo, Norway" &&
+      candidateState.settings.countryCode === "NO"
+    );
   }
 
   function cloudDocRef(user) {
