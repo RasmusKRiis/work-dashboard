@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Work Session Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Noto+Sans+HK:wght@400;500;700&family=Noto+Serif+TC:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="frame-markers" aria-hidden="true"></div>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar__brand">
+          <span id="topbarBrandPrimary">WORK DASHBOARD //</span>
+          <span id="topbarBrandSecondary">Task Console v1.0</span>
+        </div>
+        <div class="topbar__actions">
+          <button class="topbar__link" id="viewToggleBtn" type="button">
+            Statistics
+          </button>
+          <div class="theme-toggle" id="themeToggle" role="group" aria-label="Theme mode">
+            <button class="theme-toggle__button" data-theme-option="day" type="button">
+              Day
+            </button>
+            <button class="theme-toggle__button" data-theme-option="night" type="button">
+              Night
+            </button>
+            <button class="theme-toggle__button" data-theme-option="hongkong" type="button">
+              Hoeng1 Gong2 香港
+            </button>
+          </div>
+          <div class="topbar__status">
+            <span id="topbarLocation">OSLO, NO</span>
+            <span id="topbarWeatherStatus">WEATHER READY</span>
+            <span id="topbarBackupStatus">LOCAL BACKUP ACTIVE</span>
+            <span id="topbarTimestamp">00000000-0000</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-views">
+        <section class="view dashboard-view" id="dashboardView">
+          <div class="dashboard-grid">
+            <div class="dashboard-main">
+              <section class="panel session-card">
+                <div class="panel__eyebrow">
+                  <span id="sessionPanelLabel">01 // SESSION</span>
+                  <span id="sessionTimezone">UTC +00:00</span>
+                </div>
+                <div class="session-card__body">
+                  <div>
+                    <p class="session-card__greeting" id="sessionGreeting">
+                      Good afternoon.
+                    </p>
+                    <p class="session-card__meta" id="sessionMeta">
+                      SATURDAY · APRIL 18, 2026 · FOCUS WINDOW ACTIVE
+                    </p>
+                  </div>
+                  <div class="session-card__clock">
+                    <div class="session-card__clock-row">
+                      <span class="session-card__clock-main" id="clockTime">09:16</span>
+                      <span class="session-card__clock-seconds" id="clockSeconds">07</span>
+                    </div>
+                    <p class="session-card__clock-label" id="clockLabel">LOCAL TIME</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel agenda-card">
+                <div class="panel__eyebrow">
+                  <span id="agendaPanelLabel">02 // DAY PLAN</span>
+                  <span id="agendaHeaderMeta">7 visible tasks</span>
+                </div>
+                <div class="agenda-card__header">
+                  <div>
+                    <p class="agenda-card__title" id="selectedDayTitle">Saturday, April 18</p>
+                    <p class="agenda-card__subtitle" id="selectedDaySubtitle">
+                      Tasks for the selected workday
+                    </p>
+                  </div>
+                  <div class="agenda-card__nav">
+                    <button class="button button--icon" id="previousWeekBtn" type="button">
+                      &#8592;
+                    </button>
+                    <button class="button button--icon" id="nextWeekBtn" type="button">
+                      &#8594;
+                    </button>
+                  </div>
+                </div>
+                <div class="agenda-card__week-strip" id="weekStrip"></div>
+                <div class="agenda-card__list" id="agendaList"></div>
+              </section>
+            </div>
+
+            <aside class="dashboard-side">
+              <section class="panel operator-card">
+                <div class="panel__eyebrow">
+                  <span id="operatorPanelLabel">03 // OPERATOR</span>
+                  <span>ONLINE</span>
+                </div>
+                <div class="operator-card__body">
+                  <div class="operator-card__identity">
+                    <div class="operator-card__monogram">WD</div>
+                    <div>
+                      <p class="operator-card__name" id="operatorName">Focus Console</p>
+                      <p class="operator-card__meta" id="operatorMeta">Workday command deck</p>
+                    </div>
+                  </div>
+                  <div class="operator-card__stats" id="operatorStats"></div>
+                  <div class="operator-card__actions">
+                    <button class="button button--dark" id="newTaskBtn" type="button">
+                      New task
+                    </button>
+                    <button class="button" id="exportJsonBtn" type="button">
+                      Download JSON
+                    </button>
+                    <button class="button" id="importJsonBtn" type="button">
+                      Upload JSON
+                    </button>
+                    <input
+                      id="importFileInput"
+                      type="file"
+                      accept="application/json,.json"
+                      hidden
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <aside class="panel flow-card">
+                <div class="panel__eyebrow">
+                  <span id="flowPanelLabel">04 // NOW / NEXT / LATER</span>
+                  <span id="flowSummaryLabel">0 queued</span>
+                </div>
+                <div class="flow-card__grid" id="flowBuckets"></div>
+              </aside>
+
+              <section class="panel weather-card">
+                <div class="panel__eyebrow">
+                  <span id="weatherPanelLabel">05 // WEATHER DESK</span>
+                  <span id="weatherUpdateLabel">SYNCING</span>
+                </div>
+                <div class="weather-card__hero">
+                  <div>
+                    <p class="weather-card__city" id="weatherCity">Oslo, Norway</p>
+                    <p class="weather-card__condition" id="weatherCondition">
+                      Loading current conditions
+                    </p>
+                  </div>
+                  <p class="weather-card__temp" id="weatherTemp">--°</p>
+                </div>
+                <form class="weather-card__search" id="weatherForm">
+                  <label class="weather-card__search-label" id="weatherSearchLabel" for="weatherQuery">
+                    Change weather location
+                  </label>
+                  <div class="weather-card__search-row">
+                    <input
+                      id="weatherQuery"
+                      name="weatherQuery"
+                      type="text"
+                      list="weatherSuggestions"
+                      placeholder="Type a city, e.g. Tokyo"
+                      autocomplete="off"
+                    />
+                    <button class="button" id="weatherSetLocationBtn" type="submit">Set location</button>
+                  </div>
+                  <datalist id="weatherSuggestions"></datalist>
+                  <p class="weather-card__search-status" id="weatherSearchStatus">
+                    Searches real places from Open-Meteo geocoding.
+                  </p>
+                </form>
+                <div class="weather-card__status-grid" id="weatherStatusGrid"></div>
+                <div class="weather-card__hourly" id="weatherHourly"></div>
+                <div class="weather-card__forecast" id="weatherForecast"></div>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view stats-view" id="statsView" hidden>
+          <div class="stats-view__header">
+            <div>
+              <p class="stats-view__eyebrow" id="statsViewEyebrow">STATISTICS</p>
+              <h1 class="stats-view__title" id="statsViewTitle">Data Snapshot</h1>
+            </div>
+            <p class="stats-view__meta" id="statsPageMeta">
+              Four live views over your tasks and completion history.
+            </p>
+          </div>
+
+          <div class="stats-grid">
+            <section class="panel stats-card">
+              <div class="panel__eyebrow">
+                <span id="statsCardCompletionLabel">01 // COMPLETION CADENCE</span>
+                <span id="statsCompletionRange">LAST 14 DAYS</span>
+              </div>
+              <div class="stats-card__lead">
+                <span class="stats-card__value" id="statsCompletionValue">0</span>
+                <span class="stats-card__label" id="statsCompletionUnit">completions</span>
+              </div>
+              <p class="stats-card__meta" id="statsCompletionMeta">
+                Average per day and recent completion trend.
+              </p>
+              <div class="stats-card__chart" id="statsCompletionChart"></div>
+            </section>
+
+            <section class="panel stats-card">
+              <div class="panel__eyebrow">
+                <span id="statsCardPriorityLabel">02 // PRIORITY BALANCE</span>
+                <span id="statsPriorityMeta">OPEN TASKS</span>
+              </div>
+              <div class="stats-card__stack" id="statsPriorityList"></div>
+            </section>
+
+            <section class="panel stats-card">
+              <div class="panel__eyebrow">
+                <span id="statsCardProjectLabel">03 // PROJECT SPREAD</span>
+                <span id="statsProjectMeta">TOP PROJECTS</span>
+              </div>
+              <div class="stats-card__stack" id="statsProjectList"></div>
+            </section>
+
+            <section class="panel stats-card">
+              <div class="panel__eyebrow">
+                <span id="statsCardHorizonLabel">04 // LOAD HORIZON</span>
+                <span id="statsLoadMeta">NEXT 7 DAYS</span>
+              </div>
+              <div class="stats-card__stack" id="statsHorizonList"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="task-dialog" id="taskDialog">
+      <form class="task-dialog__form" id="taskForm">
+        <div class="task-dialog__header">
+          <div>
+            <p class="task-dialog__eyebrow">TASK DETAIL</p>
+            <h2 id="dialogTitle">Edit task</h2>
+          </div>
+          <button class="button button--icon" id="closeDialogBtn" type="button">
+            &#10005;
+          </button>
+        </div>
+
+        <input id="dialogTaskId" type="hidden" />
+
+        <label class="task-dialog__field">
+          <span>Title</span>
+          <input id="dialogTaskTitle" type="text" required />
+        </label>
+
+        <div class="task-dialog__grid">
+          <label class="task-dialog__field">
+            <span>Date</span>
+            <input id="dialogTaskDate" type="date" required />
+          </label>
+          <label class="task-dialog__field">
+            <span>Time</span>
+            <input id="dialogTaskTime" type="time" />
+          </label>
+        </div>
+
+        <div class="task-dialog__grid">
+          <label class="task-dialog__field">
+            <span>Project</span>
+            <input id="dialogTaskProject" type="text" placeholder="Focus area" />
+          </label>
+          <label class="task-dialog__field">
+            <span>Priority</span>
+            <select id="dialogTaskPriority">
+              <option value="urgent">Urgent</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="task-dialog__grid">
+          <label class="task-dialog__field">
+            <span>Status</span>
+            <select id="dialogTaskStatus">
+              <option value="todo">To do</option>
+              <option value="doing">In progress</option>
+              <option value="done">Done</option>
+            </select>
+          </label>
+          <label class="task-dialog__field">
+            <span>Duration (min)</span>
+            <input id="dialogTaskDuration" type="number" min="0" step="15" placeholder="60" />
+          </label>
+        </div>
+
+        <label class="task-dialog__field">
+          <span>Details</span>
+          <textarea
+            id="dialogTaskDetails"
+            rows="4"
+            placeholder="Add context, notes, links, or acceptance criteria"
+          ></textarea>
+        </label>
+
+        <div class="task-dialog__subtasks">
+          <div class="task-dialog__subtasks-header">
+            <span>Subtasks</span>
+            <button class="button" id="addSubtaskBtn" type="button">Add subtask</button>
+          </div>
+          <div id="subtaskList"></div>
+        </div>
+
+        <div class="task-dialog__actions">
+          <button class="button button--danger" id="deleteTaskBtn" type="button">
+            Delete
+          </button>
+          <div class="task-dialog__actions-right">
+            <button class="button" id="cancelDialogBtn" type="button">Cancel</button>
+            <button class="button button--dark" type="submit">Save task</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="subtaskTemplate">
+      <div class="subtask-row">
+        <label class="subtask-row__checkbox">
+          <input class="subtask-row__done" type="checkbox" />
+          <span></span>
+        </label>
+        <input class="subtask-row__input" type="text" placeholder="Subtask" />
+        <button class="button button--icon subtask-row__remove" type="button">&#10005;</button>
+      </div>
+    </template>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
