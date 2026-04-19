@@ -32,7 +32,7 @@ Then open [http://localhost:8080](http://localhost:8080).
 
 ## Free Cloud Sync Setup
 
-This project now includes a built-in cloud sync card in the operator module. The app keeps `localStorage` as a fast offline cache, but when you connect Firebase it also saves your tasks, subtasks, settings, and completion history to Firestore so the same account can load the same dashboard on another device.
+This project uses a built-in Firebase web config and a simple account flow in the header. The app keeps `localStorage` as a fast offline cache, and when you log in it also saves your tasks, subtasks, settings, and completion history to Firestore so the same account can load the same dashboard on another device.
 
 Use the free Firebase `Spark` plan unless you expect heavy usage.
 
@@ -63,7 +63,7 @@ const firebaseConfig = {
 };
 ```
 
-6. Copy only the JSON object part into the dashboard cloud sync box.
+6. Save that config in [firebase-config.js](/Users/rasmuskopperudriis/Coding/projects/work_dashboard/firebase-config.js) if you are wiring a new Firebase project into this repo.
 
 ### 3. Enable email/password login
 
@@ -116,12 +116,11 @@ If you are testing locally on a small server, `localhost` is usually already all
 ### 7. Connect the dashboard
 
 1. Run the dashboard on `http://localhost:8080` or open your deployed GitHub Pages URL.
-2. If the repo includes [firebase-config.js](/Users/rasmuskopperudriis/Coding/projects/work_dashboard/firebase-config.js), the project config is already built in and you can skip straight to login.
-3. If you are not using a built-in config file, paste the Firebase config JSON into the `Cloud Sync` card and click `Save config`.
-4. Enter your email and password.
-5. Click `Sign up` the first time.
-6. On later devices, use the same email and password with `Log in`.
-7. After login, the app will compare local data and cloud data and keep the newer copy.
+2. Click the auth button in the header.
+3. Enter your email and password.
+4. Click `Sign up` the first time.
+5. On later devices, use the same email and password with `Log in`.
+6. After login, the app will compare local data and cloud data and keep the newer copy.
 
 ### 8. Daily usage
 
@@ -156,6 +155,6 @@ Use the `Download JSON` button to save your current session. The exported file i
 - Completion history used by the statistics page
 - Dashboard settings such as weather location
 
-It does not include your login session. Firebase config can now either be bundled in [firebase-config.js](/Users/rasmuskopperudriis/Coding/projects/work_dashboard/firebase-config.js) or entered manually per browser.
+It does not include your login session.
 
 Use `Upload JSON` to restore that state after browser storage is cleared.

@@ -24,6 +24,9 @@
           <button class="topbar__link" id="viewToggleBtn" type="button">
             Statistics
           </button>
+          <button class="topbar__link" id="authTriggerBtn" type="button">
+            Log in
+          </button>
           <div class="theme-toggle" id="themeToggle" role="group" aria-label="Theme mode">
             <button class="theme-toggle__button" data-theme-option="day" type="button">
               Day
@@ -129,67 +132,6 @@
                       accept="application/json,.json"
                       hidden
                     />
-                  </div>
-                  <div class="cloud-sync-card">
-                    <div class="cloud-sync-card__header">
-                      <div>
-                        <p class="cloud-sync-card__eyebrow">CLOUD SYNC</p>
-                        <p class="cloud-sync-card__title">Free device sync</p>
-                      </div>
-                      <span class="cloud-sync-card__badge" id="cloudSyncBadge">LOCAL ONLY</span>
-                    </div>
-                    <div class="cloud-sync-card__config-block" id="cloudConfigBlock">
-                      <label class="task-dialog__field">
-                        <span>Firebase config JSON</span>
-                        <textarea
-                          class="cloud-sync-card__config"
-                          id="cloudConfigInput"
-                          rows="5"
-                          placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'
-                        ></textarea>
-                      </label>
-                      <button class="button button--ghost" id="saveCloudConfigBtn" type="button">
-                        Save config
-                      </button>
-                    </div>
-                    <p class="cloud-sync-card__hint" id="cloudConfigHint" hidden>
-                      Project cloud config is already built in. Log in on this device with your email and password.
-                    </p>
-                    <div class="cloud-sync-card__grid">
-                      <label class="task-dialog__field">
-                        <span>Email</span>
-                        <input
-                          id="cloudEmailInput"
-                          type="email"
-                          autocomplete="email"
-                          placeholder="you@work.com"
-                        />
-                      </label>
-                      <label class="task-dialog__field">
-                        <span>Password</span>
-                        <input
-                          id="cloudPasswordInput"
-                          type="password"
-                          autocomplete="current-password"
-                          placeholder="At least 6 characters"
-                        />
-                      </label>
-                    </div>
-                    <div class="cloud-sync-card__actions">
-                      <button class="button" id="cloudSignUpBtn" type="button">Sign up</button>
-                      <button class="button button--dark" id="cloudSignInBtn" type="button">
-                        Log in
-                      </button>
-                      <button class="button" id="cloudSyncNowBtn" type="button" hidden>
-                        Sync now
-                      </button>
-                      <button class="button button--ghost" id="cloudSignOutBtn" type="button" hidden>
-                        Log out
-                      </button>
-                    </div>
-                    <p class="cloud-sync-card__status" id="cloudSyncStatus">
-                      Local-only mode. Add Firebase config to turn on free sync.
-                    </p>
                   </div>
                 </div>
               </section>
@@ -385,6 +327,65 @@
             <button class="button" id="cancelDialogBtn" type="button">Cancel</button>
             <button class="button button--dark" type="submit">Save task</button>
           </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="auth-dialog" id="authDialog">
+      <form class="auth-dialog__panel" method="dialog">
+        <div class="task-dialog__header">
+          <div>
+            <p class="task-dialog__eyebrow" id="authDialogEyebrow">CLOUD ACCOUNT</p>
+            <h2 id="authDialogTitle">Log in</h2>
+          </div>
+          <button class="button button--icon" id="closeAuthDialogBtn" type="button">
+            &#10005;
+          </button>
+        </div>
+
+        <p class="auth-dialog__hint" id="authDialogHint">
+          Use your email and password to sync tasks across devices.
+        </p>
+
+        <div class="auth-dialog__grid">
+          <label class="task-dialog__field">
+            <span id="authEmailLabel">Email</span>
+            <input
+              id="cloudEmailInput"
+              type="email"
+              autocomplete="email"
+              placeholder="you@work.com"
+            />
+          </label>
+          <label class="task-dialog__field">
+            <span id="authPasswordLabel">Password</span>
+            <input
+              id="cloudPasswordInput"
+              type="password"
+              autocomplete="current-password"
+              placeholder="At least 6 characters"
+            />
+          </label>
+        </div>
+
+        <p class="auth-dialog__status" id="cloudSyncStatus">
+          Cloud sync ready. Log in to sync this dashboard across devices.
+        </p>
+
+        <div class="auth-dialog__actions">
+          <button class="button" id="cloudSignUpBtn" type="button">Sign up</button>
+          <button class="button button--dark" id="cloudSignInBtn" type="button">
+            Log in
+          </button>
+          <button class="button" id="cloudSyncNowBtn" type="button" hidden>
+            Sync now
+          </button>
+          <button class="button button--ghost" id="cloudSignOutBtn" type="button" hidden>
+            Log out
+          </button>
+          <button class="button button--ghost" id="authCloseBtn" type="button">
+            Close
+          </button>
         </div>
       </form>
     </dialog>

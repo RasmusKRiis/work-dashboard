@@ -318,6 +318,29 @@ body[data-theme="hongkong"]::after {
   transform: translateY(-1px);
 }
 
+.topbar__link[data-state="success"] {
+  color: var(--olive);
+  border-color: color-mix(in srgb, var(--olive) 32%, transparent);
+  background: color-mix(in srgb, var(--olive-soft) 76%, transparent);
+}
+
+.topbar__link[data-state="active"] {
+  color: var(--accent-deep);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 76%, transparent);
+}
+
+.topbar__link[data-state="error"] {
+  color: var(--accent-deep);
+  border-color: rgba(187, 111, 70, 0.2);
+  background: rgba(187, 111, 70, 0.08);
+}
+
+.topbar__link[data-account="true"] {
+  text-transform: none;
+  letter-spacing: 0.08em;
+}
+
 .theme-toggle {
   display: inline-flex;
   align-items: center;
@@ -1458,6 +1481,12 @@ body[data-theme="hongkong"] .hourly-row__bar span {
   gap: 10px;
 }
 
+.auth-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .task-dialog__actions {
   display: flex;
   justify-content: space-between;
@@ -1479,12 +1508,30 @@ body[data-theme="hongkong"] .hourly-row__bar span {
   box-shadow: none;
 }
 
+.auth-dialog {
+  width: min(560px, calc(100vw - 28px));
+  border: none;
+  padding: 0;
+  border-radius: 28px;
+  background: transparent;
+  box-shadow: none;
+}
+
 .task-dialog::backdrop {
   background: rgba(33, 24, 18, 0.3);
   backdrop-filter: blur(4px);
 }
 
+.auth-dialog::backdrop {
+  background: rgba(33, 24, 18, 0.3);
+  backdrop-filter: blur(4px);
+}
+
 .task-dialog[open] .task-dialog__form {
+  animation: dialogRise 220ms ease-out both;
+}
+
+.auth-dialog[open] .auth-dialog__panel {
   animation: dialogRise 220ms ease-out both;
 }
 
@@ -1498,6 +1545,40 @@ body[data-theme="hongkong"] .hourly-row__bar span {
     linear-gradient(180deg, var(--dialog-fill-start), var(--dialog-fill-end));
   border: 1px solid var(--panel-border);
   box-shadow: var(--shadow);
+}
+
+.auth-dialog__panel {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.36), transparent 16%),
+    linear-gradient(180deg, var(--dialog-fill-start), var(--dialog-fill-end));
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+}
+
+.auth-dialog__hint,
+.auth-dialog__status {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.auth-dialog__status[data-state="success"] {
+  color: var(--olive);
+}
+
+.auth-dialog__status[data-state="error"] {
+  color: var(--accent-deep);
+}
+
+.auth-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 @keyframes ambientDrift {
@@ -1779,12 +1860,14 @@ body[data-theme="hongkong"] .hourly-row__bar span {
 
   .session-card__body,
   .stats-card__lead,
+  .auth-dialog__actions,
   .task-dialog__actions,
   .task-dialog__actions-right {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .auth-dialog__grid,
   .task-dialog__grid,
   .cloud-sync-card__grid,
   .cloud-sync-card__actions,

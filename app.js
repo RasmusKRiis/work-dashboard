@@ -1,6 +1,5 @@
 (function () {
   var STORAGE_KEY = "work_dashboard_state_v1";
-  var FIREBASE_CONFIG_KEY = "work_dashboard_firebase_config_v1";
   var CLOUD_COLLECTION = "dashboards";
   var CLOUD_SYNC_DEBOUNCE_MS = 900;
   var EXPORT_VERSION = 1;
@@ -52,6 +51,7 @@
     topbarBackupStatus: document.getElementById("topbarBackupStatus"),
     topbarTimestamp: document.getElementById("topbarTimestamp"),
     viewToggleBtn: document.getElementById("viewToggleBtn"),
+    authTriggerBtn: document.getElementById("authTriggerBtn"),
     dashboardView: document.getElementById("dashboardView"),
     statsView: document.getElementById("statsView"),
     sessionPanelLabel: document.getElementById("sessionPanelLabel"),
@@ -130,13 +130,16 @@
     addSubtaskBtn: document.getElementById("addSubtaskBtn"),
     subtaskList: document.getElementById("subtaskList"),
     subtaskTemplate: document.getElementById("subtaskTemplate"),
-    cloudSyncBadge: document.getElementById("cloudSyncBadge"),
-    cloudConfigBlock: document.getElementById("cloudConfigBlock"),
-    cloudConfigInput: document.getElementById("cloudConfigInput"),
-    cloudConfigHint: document.getElementById("cloudConfigHint"),
+    authDialog: document.getElementById("authDialog"),
+    authDialogEyebrow: document.getElementById("authDialogEyebrow"),
+    authDialogTitle: document.getElementById("authDialogTitle"),
+    authDialogHint: document.getElementById("authDialogHint"),
+    authEmailLabel: document.getElementById("authEmailLabel"),
+    authPasswordLabel: document.getElementById("authPasswordLabel"),
+    closeAuthDialogBtn: document.getElementById("closeAuthDialogBtn"),
+    authCloseBtn: document.getElementById("authCloseBtn"),
     cloudEmailInput: document.getElementById("cloudEmailInput"),
     cloudPasswordInput: document.getElementById("cloudPasswordInput"),
-    saveCloudConfigBtn: document.getElementById("saveCloudConfigBtn"),
     cloudSignUpBtn: document.getElementById("cloudSignUpBtn"),
     cloudSignInBtn: document.getElementById("cloudSignInBtn"),
     cloudSyncNowBtn: document.getElementById("cloudSyncNowBtn"),
@@ -206,6 +209,7 @@
     elements.viewToggleBtn.addEventListener("click", function () {
       setActiveView(ui.activeView === "dashboard" ? "stats" : "dashboard");
     });
+    elements.authTriggerBtn.addEventListener("click", openAuthDialog);
     elements.themeButtons.forEach(function (button) {
       button.addEventListener("click", function () {
         applyTheme(button.getAttribute("data-theme-option"), true);
@@ -293,7 +297,12 @@
       event.preventDefault();
       closeTaskDialog();
     });
-    elements.saveCloudConfigBtn.addEventListener("click", handleCloudConfigSave);
+    elements.closeAuthDialogBtn.addEventListener("click", closeAuthDialog);
+    elements.authCloseBtn.addEventListener("click", closeAuthDialog);
+    elements.authDialog.addEventListener("cancel", function (event) {
+      event.preventDefault();
+      closeAuthDialog();
+    });
     elements.cloudSignUpBtn.addEventListener("click", handleCloudSignUp);
     elements.cloudSignInBtn.addEventListener("click", handleCloudSignIn);
     elements.cloudSyncNowBtn.addEventListener("click", function () {
@@ -338,6 +347,16 @@
     elements.statsCardPriorityLabel.textContent = copyText("statsCardPriorityLabel");
     elements.statsCardProjectLabel.textContent = copyText("statsCardProjectLabel");
     elements.statsCardHorizonLabel.textContent = copyText("statsCardHorizonLabel");
+    elements.authDialogEyebrow.textContent = copyText("authDialogEyebrow");
+    elements.authDialogTitle.textContent = copyText("authDialogTitle");
+    elements.authDialogHint.textContent = copyText("authDialogHint");
+    elements.authEmailLabel.textContent = copyText("authEmailLabel");
+    elements.authPasswordLabel.textContent = copyText("authPasswordLabel");
+    elements.cloudSignUpBtn.textContent = copyText("authSignUpButton");
+    elements.cloudSignInBtn.textContent = copyText("authSignInButton");
+    elements.cloudSyncNowBtn.textContent = copyText("authSyncButton");
+    elements.cloudSignOutBtn.textContent = copyText("authSignOutButton");
+    elements.authCloseBtn.textContent = copyText("closeButton");
     refreshViewToggleLabel();
   }
 
@@ -384,6 +403,18 @@
       statsCardPriorityLabel: "02 // JUNG6 JIU3 DOU6 FAN1 BOU3",
       statsCardProjectLabel: "03 // HUNG6 MUK6 FAN1 BOU3",
       statsCardHorizonLabel: "04 // HAU6 BIN6 JAT6 CING4",
+      authDialogEyebrow: "WAN4 DYUN1 ZOENG6 HOU6 雲端帳戶",
+      authDialogTitle: "Dang1 luk6 / Dang1 gei3 登錄 / 登記",
+      authDialogHint: "Jung6 email tung4 password dung6 bou6 jam6 mou6. 用 email 同 password 同步任務。",
+      authEmailLabel: "Email",
+      authPasswordLabel: "Password",
+      authSignUpButton: "Dang1 gei3 登記",
+      authSignInButton: "Dang1 luk6 登錄",
+      authSignOutButton: "Dang1 ceot1 登出",
+      authSyncButton: "Dung6 bou6 同步",
+      closeButton: "Gwaan1 bei2 關閉",
+      authButtonSignedOut: "Dang1 luk6 登錄",
+      authButtonSignedIn: "Wan4 dyun1 ok 雲端已連",
     };
     var defaultCopy = {
       brandPrimary: "WORK DASHBOARD //",
@@ -410,6 +441,18 @@
       statsCardPriorityLabel: "02 // PRIORITY BALANCE",
       statsCardProjectLabel: "03 // PROJECT SPREAD",
       statsCardHorizonLabel: "04 // LOAD HORIZON",
+      authDialogEyebrow: "CLOUD ACCOUNT",
+      authDialogTitle: "Log in / Sign up",
+      authDialogHint: "Use your email and password to sync tasks across devices.",
+      authEmailLabel: "Email",
+      authPasswordLabel: "Password",
+      authSignUpButton: "Sign up",
+      authSignInButton: "Log in",
+      authSignOutButton: "Log out",
+      authSyncButton: "Sync now",
+      closeButton: "Close",
+      authButtonSignedOut: "Log in",
+      authButtonSignedIn: "Cloud",
     };
     return (isHongKongTheme() ? hongKongCopy : defaultCopy)[key];
   }
@@ -1303,6 +1346,18 @@
     elements.taskDialog.close();
   }
 
+  function openAuthDialog() {
+    if (!elements.authDialog.open) {
+      elements.authDialog.showModal();
+    }
+  }
+
+  function closeAuthDialog() {
+    if (elements.authDialog.open) {
+      elements.authDialog.close();
+    }
+  }
+
   function appendSubtaskRow(subtask) {
     var fragment = elements.subtaskTemplate.content.cloneNode(true);
     var row = fragment.querySelector(".subtask-row");
@@ -1509,8 +1564,6 @@
   }
 
   function initializeCloudSync() {
-    populateCloudConfigInput();
-
     if (window.location.protocol === "file:") {
       ui.cloud.status = "Cloud sync needs http://localhost or a hosted URL. Open this dashboard through a local server or GitHub Pages first.";
       ui.cloud.statusState = "error";
@@ -1525,24 +1578,14 @@
       return;
     }
 
-    var config;
     try {
-      config = loadCloudConfig();
-    } catch (error) {
-      ui.cloud.status = error.message;
-      ui.cloud.statusState = "error";
-      renderCloudSyncCard();
-      return;
-    }
-
-    if (!config) {
-      ui.cloud.status = "Local-only mode. Add Firebase config to turn on free sync.";
-      ui.cloud.statusState = "neutral";
-      renderCloudSyncCard();
-      return;
-    }
-
-    try {
+      var config = getBundledCloudConfig();
+      if (!config) {
+        ui.cloud.status = "Cloud sync is not configured for this deployment.";
+        ui.cloud.statusState = "error";
+        renderCloudSyncCard();
+        return;
+      }
       ui.cloud.configured = true;
       ui.cloud.available = true;
       ui.cloud.app = window.firebase.apps && window.firebase.apps.length
@@ -1551,9 +1594,7 @@
       ui.cloud.auth = window.firebase.auth();
       ui.cloud.db = window.firebase.firestore();
       ui.cloud.initialized = true;
-      ui.cloud.status = hasBundledCloudConfig()
-        ? "Built-in cloud config loaded. Log in to sync this dashboard across devices."
-        : "Cloud configured. Sign in to sync this dashboard across devices.";
+      ui.cloud.status = "Cloud login is ready. Use your email and password to sync across devices.";
       ui.cloud.statusState = "success";
       if (window.firebase.auth && window.firebase.auth.Auth.Persistence) {
         ui.cloud.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL).catch(function () {
@@ -1562,34 +1603,14 @@
       }
       startCloudAuthObserver();
     } catch (error) {
-      ui.cloud.status = "Cloud init failed: " + formatCloudError(error);
+      ui.cloud.status = error.message;
       ui.cloud.statusState = "error";
+      renderCloudSyncCard();
+      return;
     }
 
     renderCloudSyncCard();
     syncTopbar();
-  }
-
-  function populateCloudConfigInput() {
-    var bundledConfig = getBundledCloudConfig();
-    var rawConfig = bundledConfig
-      ? JSON.stringify(bundledConfig, null, 2)
-      : window.localStorage.getItem(FIREBASE_CONFIG_KEY) || "";
-    if (elements.cloudConfigInput) {
-      elements.cloudConfigInput.value = rawConfig;
-    }
-  }
-
-  function loadCloudConfig() {
-    var bundledConfig = getBundledCloudConfig();
-    if (bundledConfig) {
-      return bundledConfig;
-    }
-    var rawConfig = window.localStorage.getItem(FIREBASE_CONFIG_KEY);
-    if (!rawConfig) {
-      return null;
-    }
-    return parseFirebaseConfig(rawConfig);
   }
 
   function getBundledCloudConfig() {
@@ -1599,17 +1620,13 @@
     return parseFirebaseConfig(window.WORK_DASHBOARD_FIREBASE_CONFIG);
   }
 
-  function hasBundledCloudConfig() {
-    return Boolean(window.WORK_DASHBOARD_FIREBASE_CONFIG);
-  }
-
   function parseFirebaseConfig(rawConfig) {
     var parsed;
     if (typeof rawConfig === "string") {
       try {
         parsed = JSON.parse(rawConfig);
       } catch (error) {
-        throw new Error("Firebase config is not valid JSON. Paste the full config object from the Firebase console.");
+        throw new Error("Firebase config is not valid JSON.");
       }
     } else {
       parsed = rawConfig;
@@ -1628,89 +1645,59 @@
   }
 
   function renderCloudSyncCard() {
-    if (!elements.cloudSyncBadge) {
+    if (!elements.authTriggerBtn) {
       return;
     }
 
-    var usingBuiltInConfig = hasBundledCloudConfig();
     var signedIn = Boolean(ui.cloud.user);
-    var badgeLabel = "LOCAL ONLY";
-    var badgeState = "neutral";
+    var buttonLabel = copyText("authButtonSignedOut");
+    var buttonState = "neutral";
 
     if (ui.cloud.syncing) {
-      badgeLabel = "SYNCING";
-      badgeState = "active";
+      buttonLabel = isHongKongTheme() ? "Dung6 bou6 zung2 同步中" : "Syncing";
+      buttonState = "active";
     } else if (signedIn) {
-      badgeLabel = "SYNC READY";
-      badgeState = "success";
+      buttonLabel = ui.cloud.user.email ? trimText(ui.cloud.user.email, 22) : copyText("authButtonSignedIn");
+      buttonState = "success";
     } else if (ui.cloud.configured) {
-      badgeLabel = "CONFIGURED";
-      badgeState = ui.cloud.statusState === "error" ? "error" : "success";
+      buttonLabel = copyText("authButtonSignedOut");
+      buttonState = ui.cloud.statusState === "error" ? "error" : "neutral";
     } else if (ui.cloud.statusState === "error") {
-      badgeLabel = "SETUP NEEDED";
-      badgeState = "error";
+      buttonLabel = isHongKongTheme() ? "Wan4 dyun1 ji6 soeng5 雲端異常" : "Cloud issue";
+      buttonState = "error";
     }
 
-    elements.cloudSyncBadge.textContent = badgeLabel;
-    elements.cloudSyncBadge.dataset.state = badgeState;
+    elements.authTriggerBtn.textContent = buttonLabel;
+    elements.authTriggerBtn.dataset.state = buttonState;
+    elements.authTriggerBtn.dataset.account = signedIn ? "true" : "false";
+    elements.authTriggerBtn.setAttribute("aria-label", buttonLabel);
     elements.cloudSyncStatus.textContent = ui.cloud.status;
     elements.cloudSyncStatus.dataset.state = ui.cloud.statusState || "neutral";
-    if (elements.cloudConfigBlock) {
-      elements.cloudConfigBlock.hidden = usingBuiltInConfig;
-    }
-    if (elements.cloudConfigHint) {
-      elements.cloudConfigHint.hidden = !usingBuiltInConfig;
-    }
     elements.cloudSyncNowBtn.hidden = !signedIn;
     elements.cloudSignOutBtn.hidden = !signedIn;
     elements.cloudSignUpBtn.hidden = signedIn;
     elements.cloudSignInBtn.hidden = signedIn;
-    elements.cloudConfigInput.disabled = usingBuiltInConfig || ui.cloud.syncing;
-    elements.saveCloudConfigBtn.disabled = usingBuiltInConfig || ui.cloud.syncing;
     elements.cloudEmailInput.disabled = !ui.cloud.initialized || signedIn || ui.cloud.syncing;
     elements.cloudPasswordInput.disabled = !ui.cloud.initialized || signedIn || ui.cloud.syncing;
     elements.cloudSignUpBtn.disabled = !ui.cloud.initialized || ui.cloud.syncing;
     elements.cloudSignInBtn.disabled = !ui.cloud.initialized || ui.cloud.syncing;
     elements.cloudSyncNowBtn.disabled = ui.cloud.syncing;
     elements.cloudSignOutBtn.disabled = ui.cloud.syncing;
-  }
-
-  function handleCloudConfigSave() {
-    if (hasBundledCloudConfig()) {
-      setCloudStatus("This dashboard already has built-in cloud config. Just log in on this device.", "success");
-      return;
-    }
-    var rawConfig = elements.cloudConfigInput.value.trim();
-    if (!rawConfig) {
-      window.localStorage.removeItem(FIREBASE_CONFIG_KEY);
-      setCloudStatus("Saved Firebase config removed. Reloading into local-only mode.", "neutral");
-      window.setTimeout(function () {
-        window.location.reload();
-      }, 180);
-      return;
-    }
-
-    try {
-      var parsed = parseFirebaseConfig(rawConfig);
-      var prettyConfig = JSON.stringify(parsed, null, 2);
-      window.localStorage.setItem(FIREBASE_CONFIG_KEY, prettyConfig);
-      elements.cloudConfigInput.value = prettyConfig;
-      if (window.location.protocol === "http:" || window.location.protocol === "https:") {
-        setCloudStatus("Firebase config saved. Reloading to initialize cloud sync.", "success");
-        window.setTimeout(function () {
-          window.location.reload();
-        }, 180);
-        return;
-      }
-      setCloudStatus("Firebase config saved. Open the dashboard on http://localhost or a hosted URL, then sign in.", "success");
-    } catch (error) {
-      setCloudStatus(error.message, "error");
-    }
+    elements.authDialogTitle.textContent = signedIn
+      ? isHongKongTheme()
+        ? "Wan4 dyun1 zoeng6 hou6 雲端帳戶"
+        : "Cloud account"
+      : copyText("authDialogTitle");
+    elements.authDialogHint.textContent = signedIn
+      ? isHongKongTheme()
+        ? "Lei5 ji5 ging1 dang1 luk6. Ho2 ji5 dung6 bou6 waak6 dang1 ceot1. 你已經登錄，可以同步或登出。"
+        : "You are signed in. You can sync this device now or log out."
+      : copyText("authDialogHint");
   }
 
   function handleCloudSignUp() {
     if (!ui.cloud.auth) {
-      setCloudStatus("Save a valid Firebase config first.", "error");
+      setCloudStatus("Cloud login is not available in this build.", "error");
       return;
     }
 
@@ -1736,7 +1723,7 @@
 
   function handleCloudSignIn() {
     if (!ui.cloud.auth) {
-      setCloudStatus("Save a valid Firebase config first.", "error");
+      setCloudStatus("Cloud login is not available in this build.", "error");
       return;
     }
 
@@ -1796,10 +1783,8 @@
         elements.cloudPasswordInput.value = "";
         setCloudStatus(
           ui.cloud.initialized
-            ? hasBundledCloudConfig()
-              ? "Built-in cloud config loaded. Log in to sync this dashboard across devices."
-              : "Cloud configured. Sign in to sync this dashboard across devices."
-            : "Local-only mode. Add Firebase config to turn on free sync.",
+            ? "Cloud login is ready. Use your email and password to sync across devices."
+            : "Cloud login is not available in this build.",
           ui.cloud.initialized ? "success" : "neutral"
         );
         return;
