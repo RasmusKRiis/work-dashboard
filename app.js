@@ -1,5 +1,8 @@
 (function () {
   var STORAGE_KEY = "work_dashboard_state_v1";
+  var FIREBASE_CONFIG_KEY = "work_dashboard_firebase_config_v1";
+  var CLOUD_COLLECTION = "dashboards";
+  var CLOUD_SYNC_DEBOUNCE_MS = 900;
   var EXPORT_VERSION = 1;
   var ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   var DEMO_TASK_TITLES = [
@@ -127,6 +130,16 @@
     addSubtaskBtn: document.getElementById("addSubtaskBtn"),
     subtaskList: document.getElementById("subtaskList"),
     subtaskTemplate: document.getElementById("subtaskTemplate"),
+    cloudSyncBadge: document.getElementById("cloudSyncBadge"),
+    cloudConfigInput: document.getElementById("cloudConfigInput"),
+    cloudEmailInput: document.getElementById("cloudEmailInput"),
+    cloudPasswordInput: document.getElementById("cloudPasswordInput"),
+    saveCloudConfigBtn: document.getElementById("saveCloudConfigBtn"),
+    cloudSignUpBtn: document.getElementById("cloudSignUpBtn"),
+    cloudSignInBtn: document.getElementById("cloudSignInBtn"),
+    cloudSyncNowBtn: document.getElementById("cloudSyncNowBtn"),
+    cloudSignOutBtn: document.getElementById("cloudSignOutBtn"),
+    cloudSyncStatus: document.getElementById("cloudSyncStatus"),
   };
   elements.themeButtons = Array.prototype.slice.call(document.querySelectorAll("[data-theme-option]"));
 
@@ -142,6 +155,22 @@
     weatherSearchState: "neutral",
     weatherSuggestions: [],
     weatherSuggestRequestId: 0,
+    cloud: {
+      available: Boolean(window.firebase),
+      configured: false,
+      initialized: false,
+      syncing: false,
+      needsResync: false,
+      user: null,
+      auth: null,
+      db: null,
+      lastSyncedAt: null,
+      status: "Local-only mode. Add Firebase config to turn on free sync.",
+      statusState: "neutral",
+      syncTimerId: null,
+      isApplyingRemote: false,
+      authUnsubscribe: null,
+    },
   };
   var clockIntervalId = null;
   var weatherSuggestTimerId = null;
@@ -150,6 +179,7 @@
 
   function init() {
     bindEvents();
+    initializeCloudSync();
     applyTheme(state.settings.theme || "day", false);
     setActiveView("dashboard");
     syncTopbar();
@@ -261,12 +291,20 @@
       event.preventDefault();
       closeTaskDialog();
     });
+    elements.saveCloudConfigBtn.addEventListener("click", handleCloudConfigSave);
+    elements.cloudSignUpBtn.addEventListener("click", handleCloudSignUp);
+    elements.cloudSignInBtn.addEventListener("click", handleCloudSignIn);
+    elements.cloudSyncNowBtn.addEventListener("click", function () {
+      syncStateToCloud("Cloud copy updated.");
+    });
+    elements.cloudSignOutBtn.addEventListener("click", handleCloudSignOut);
   }
 
   function renderAll() {
     renderThemeCopy();
     renderSessionCard();
     renderOperatorCard();
+    renderCloudSyncCard();
     renderWeekStrip();
     renderAgendaCard();
     renderFlowCard();
@@ -913,6 +951,7 @@
 
   function syncTopbar() {
     var locationLabel = state.settings.locationName || state.settings.locationQuery || "OSLO, NO";
+    var backupLabel = "";
     elements.topbarLocation.textContent = isHongKongTheme() ? locationLabel : locationLabel.toUpperCase();
     elements.topbarWeatherStatus.textContent = isHongKongTheme()
       ? ui.weatherLoading
@@ -921,9 +960,18 @@
         ? "Tin1 hei3 ok 天氣已到"
         : "Tin1 hei3 deoi6 zip3 天氣待接"
       : (ui.weatherStatus || "WEATHER READY").toUpperCase();
-    elements.topbarBackupStatus.textContent = isHongKongTheme()
-      ? "Bun2 dei6 bak1 fan6 本地備份 " + formatLastSaved(state.meta.lastSavedAt)
-      : ("Local backup " + formatLastSaved(state.meta.lastSavedAt)).toUpperCase();
+    if (ui.cloud.user) {
+      backupLabel = isHongKongTheme()
+        ? ui.cloud.syncing
+          ? "Wan4端同步 zung2 gaai3 jung6 雲端同步中"
+          : "Wan4端同步 " + formatLastSaved(ui.cloud.lastSyncedAt || state.meta.lastSavedAt)
+        : "Cloud sync " + formatLastSaved(ui.cloud.lastSyncedAt || state.meta.lastSavedAt);
+    } else {
+      backupLabel = isHongKongTheme()
+        ? "Bun2 dei6 bak1 fan6 本地備份 " + formatLastSaved(state.meta.lastSavedAt)
+        : "Local backup " + formatLastSaved(state.meta.lastSavedAt);
+    }
+    elements.topbarBackupStatus.textContent = isHongKongTheme() ? backupLabel : backupLabel.toUpperCase();
   }
 
   function refreshWeather(optionalQuery) {
@@ -1458,6 +1506,468 @@
     }
   }
 
+  function initializeCloudSync() {
+    populateCloudConfigInput();
+
+    if (window.location.protocol === "file:") {
+      ui.cloud.status = "Cloud sync needs http://localhost or a hosted URL. Open this dashboard through a local server or GitHub Pages first.";
+      ui.cloud.statusState = "error";
+      renderCloudSyncCard();
+      return;
+    }
+
+    if (!window.firebase || typeof window.firebase.initializeApp !== "function") {
+      ui.cloud.status = "Firebase scripts did not load. Reload the page with internet access.";
+      ui.cloud.statusState = "error";
+      renderCloudSyncCard();
+      return;
+    }
+
+    var config;
+    try {
+      config = loadCloudConfig();
+    } catch (error) {
+      ui.cloud.status = error.message;
+      ui.cloud.statusState = "error";
+      renderCloudSyncCard();
+      return;
+    }
+
+    if (!config) {
+      ui.cloud.status = "Local-only mode. Add Firebase config to turn on free sync.";
+      ui.cloud.statusState = "neutral";
+      renderCloudSyncCard();
+      return;
+    }
+
+    try {
+      ui.cloud.configured = true;
+      ui.cloud.available = true;
+      ui.cloud.app = window.firebase.apps && window.firebase.apps.length
+        ? window.firebase.app()
+        : window.firebase.initializeApp(config);
+      ui.cloud.auth = window.firebase.auth();
+      ui.cloud.db = window.firebase.firestore();
+      ui.cloud.initialized = true;
+      ui.cloud.status = "Cloud configured. Sign in to sync this dashboard across devices.";
+      ui.cloud.statusState = "success";
+      if (window.firebase.auth && window.firebase.auth.Auth.Persistence) {
+        ui.cloud.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL).catch(function () {
+          return null;
+        });
+      }
+      startCloudAuthObserver();
+    } catch (error) {
+      ui.cloud.status = "Cloud init failed: " + formatCloudError(error);
+      ui.cloud.statusState = "error";
+    }
+
+    renderCloudSyncCard();
+    syncTopbar();
+  }
+
+  function populateCloudConfigInput() {
+    var rawConfig = window.localStorage.getItem(FIREBASE_CONFIG_KEY) || "";
+    if (elements.cloudConfigInput) {
+      elements.cloudConfigInput.value = rawConfig;
+    }
+  }
+
+  function loadCloudConfig() {
+    var rawConfig = window.localStorage.getItem(FIREBASE_CONFIG_KEY);
+    if (!rawConfig) {
+      return null;
+    }
+    return parseFirebaseConfig(rawConfig);
+  }
+
+  function parseFirebaseConfig(rawConfig) {
+    var parsed;
+    try {
+      parsed = JSON.parse(rawConfig);
+    } catch (error) {
+      throw new Error("Firebase config is not valid JSON. Paste the full config object from the Firebase console.");
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("Firebase config must be a JSON object.");
+    }
+    var requiredKeys = ["apiKey", "authDomain", "projectId", "appId"];
+    var missing = requiredKeys.filter(function (key) {
+      return typeof parsed[key] !== "string" || !parsed[key].trim();
+    });
+    if (missing.length) {
+      throw new Error("Firebase config is missing: " + missing.join(", "));
+    }
+    return parsed;
+  }
+
+  function renderCloudSyncCard() {
+    if (!elements.cloudSyncBadge) {
+      return;
+    }
+
+    var signedIn = Boolean(ui.cloud.user);
+    var badgeLabel = "LOCAL ONLY";
+    var badgeState = "neutral";
+
+    if (ui.cloud.syncing) {
+      badgeLabel = "SYNCING";
+      badgeState = "active";
+    } else if (signedIn) {
+      badgeLabel = "SYNC READY";
+      badgeState = "success";
+    } else if (ui.cloud.configured) {
+      badgeLabel = "CONFIGURED";
+      badgeState = ui.cloud.statusState === "error" ? "error" : "success";
+    } else if (ui.cloud.statusState === "error") {
+      badgeLabel = "SETUP NEEDED";
+      badgeState = "error";
+    }
+
+    elements.cloudSyncBadge.textContent = badgeLabel;
+    elements.cloudSyncBadge.dataset.state = badgeState;
+    elements.cloudSyncStatus.textContent = ui.cloud.status;
+    elements.cloudSyncStatus.dataset.state = ui.cloud.statusState || "neutral";
+    elements.cloudSyncNowBtn.hidden = !signedIn;
+    elements.cloudSignOutBtn.hidden = !signedIn;
+    elements.cloudSignUpBtn.hidden = signedIn;
+    elements.cloudSignInBtn.hidden = signedIn;
+    elements.cloudConfigInput.disabled = ui.cloud.syncing;
+    elements.saveCloudConfigBtn.disabled = ui.cloud.syncing;
+    elements.cloudEmailInput.disabled = !ui.cloud.initialized || signedIn || ui.cloud.syncing;
+    elements.cloudPasswordInput.disabled = !ui.cloud.initialized || signedIn || ui.cloud.syncing;
+    elements.cloudSignUpBtn.disabled = !ui.cloud.initialized || ui.cloud.syncing;
+    elements.cloudSignInBtn.disabled = !ui.cloud.initialized || ui.cloud.syncing;
+    elements.cloudSyncNowBtn.disabled = ui.cloud.syncing;
+    elements.cloudSignOutBtn.disabled = ui.cloud.syncing;
+  }
+
+  function handleCloudConfigSave() {
+    var rawConfig = elements.cloudConfigInput.value.trim();
+    if (!rawConfig) {
+      window.localStorage.removeItem(FIREBASE_CONFIG_KEY);
+      setCloudStatus("Saved Firebase config removed. Reloading into local-only mode.", "neutral");
+      window.setTimeout(function () {
+        window.location.reload();
+      }, 180);
+      return;
+    }
+
+    try {
+      var parsed = parseFirebaseConfig(rawConfig);
+      var prettyConfig = JSON.stringify(parsed, null, 2);
+      window.localStorage.setItem(FIREBASE_CONFIG_KEY, prettyConfig);
+      elements.cloudConfigInput.value = prettyConfig;
+      if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+        setCloudStatus("Firebase config saved. Reloading to initialize cloud sync.", "success");
+        window.setTimeout(function () {
+          window.location.reload();
+        }, 180);
+        return;
+      }
+      setCloudStatus("Firebase config saved. Open the dashboard on http://localhost or a hosted URL, then sign in.", "success");
+    } catch (error) {
+      setCloudStatus(error.message, "error");
+    }
+  }
+
+  function handleCloudSignUp() {
+    if (!ui.cloud.auth) {
+      setCloudStatus("Save a valid Firebase config first.", "error");
+      return;
+    }
+
+    var credentials;
+    try {
+      credentials = readCloudCredentials();
+    } catch (error) {
+      setCloudStatus(error.message, "error");
+      return;
+    }
+
+    setCloudStatus("Creating cloud account for " + credentials.email + "...", "neutral");
+    ui.cloud.auth
+      .createUserWithEmailAndPassword(credentials.email, credentials.password)
+      .then(function () {
+        elements.cloudPasswordInput.value = "";
+        setCloudStatus("Account created. Preparing your cloud workspace...", "success");
+      })
+      .catch(function (error) {
+        setCloudStatus(formatCloudError(error), "error");
+      });
+  }
+
+  function handleCloudSignIn() {
+    if (!ui.cloud.auth) {
+      setCloudStatus("Save a valid Firebase config first.", "error");
+      return;
+    }
+
+    var credentials;
+    try {
+      credentials = readCloudCredentials();
+    } catch (error) {
+      setCloudStatus(error.message, "error");
+      return;
+    }
+
+    setCloudStatus("Signing in " + credentials.email + "...", "neutral");
+    ui.cloud.auth
+      .signInWithEmailAndPassword(credentials.email, credentials.password)
+      .then(function () {
+        elements.cloudPasswordInput.value = "";
+      })
+      .catch(function (error) {
+        setCloudStatus(formatCloudError(error), "error");
+      });
+  }
+
+  function handleCloudSignOut() {
+    if (!ui.cloud.auth) {
+      return;
+    }
+    window.clearTimeout(ui.cloud.syncTimerId);
+    ui.cloud.syncTimerId = null;
+    setCloudStatus("Signing out...", "neutral");
+    ui.cloud.auth
+      .signOut()
+      .catch(function (error) {
+        setCloudStatus(formatCloudError(error), "error");
+      });
+  }
+
+  function readCloudCredentials() {
+    var email = elements.cloudEmailInput.value.trim();
+    var password = elements.cloudPasswordInput.value;
+    if (!email) {
+      throw new Error("Enter the email address you want to use for cloud sync.");
+    }
+    if (!password || password.length < 6) {
+      throw new Error("Password must be at least 6 characters.");
+    }
+    return { email: email, password: password };
+  }
+
+  function startCloudAuthObserver() {
+    if (!ui.cloud.auth || ui.cloud.authUnsubscribe) {
+      return;
+    }
+    ui.cloud.authUnsubscribe = ui.cloud.auth.onAuthStateChanged(function (user) {
+      ui.cloud.user = user || null;
+      if (!user) {
+        ui.cloud.lastSyncedAt = null;
+        elements.cloudPasswordInput.value = "";
+        setCloudStatus(
+          ui.cloud.initialized
+            ? "Cloud configured. Sign in to sync this dashboard across devices."
+            : "Local-only mode. Add Firebase config to turn on free sync.",
+          ui.cloud.initialized ? "success" : "neutral"
+        );
+        return;
+      }
+      elements.cloudEmailInput.value = user.email || "";
+      setCloudStatus("Signed in as " + (user.email || "your account") + ". Checking cloud data...", "neutral");
+      reconcileCloudState(user);
+    });
+  }
+
+  function reconcileCloudState(user) {
+    fetchCloudState(user)
+      .then(function (cloudState) {
+        if (!cloudState) {
+          return syncStateToCloud("Created your first cloud backup.");
+        }
+        var freshness = compareStateFreshness(state, cloudState);
+        if (freshness === "remote") {
+          replaceStateFromCloud(cloudState);
+          ui.cloud.lastSyncedAt = cloudState.meta.lastSavedAt || new Date().toISOString();
+          setCloudStatus("Loaded the newer cloud copy for " + (user.email || "your account") + ".", "success");
+          return null;
+        }
+        if (freshness === "local") {
+          return syncStateToCloud("Uploaded the newer local copy to cloud.");
+        }
+        ui.cloud.lastSyncedAt = cloudState.meta.lastSavedAt || state.meta.lastSavedAt;
+        setCloudStatus("Cloud data already matches this device.", "success");
+        return null;
+      })
+      .catch(function (error) {
+        setCloudStatus(formatCloudError(error), "error");
+      });
+  }
+
+  function fetchCloudState(user) {
+    if (!ui.cloud.db || !user) {
+      return Promise.resolve(null);
+    }
+    return cloudDocRef(user)
+      .get()
+      .then(function (snapshot) {
+        if (!snapshot.exists) {
+          return null;
+        }
+        var normalized = normalizeCloudState(snapshot.data());
+        return normalized;
+      });
+  }
+
+  function syncStateToCloud(successMessage) {
+    if (!canSyncToCloud()) {
+      return Promise.resolve(false);
+    }
+    if (ui.cloud.syncing) {
+      ui.cloud.needsResync = true;
+      return Promise.resolve(false);
+    }
+
+    var payload = buildSerializableState();
+    ui.cloud.syncing = true;
+    ui.cloud.needsResync = false;
+    renderCloudSyncCard();
+    syncTopbar();
+
+    return cloudDocRef(ui.cloud.user)
+      .set(
+        {
+          version: EXPORT_VERSION,
+          updatedAt: payload.meta.lastSavedAt,
+          settings: payload.settings,
+          meta: payload.meta,
+          tasks: payload.tasks,
+          activityLog: payload.activityLog,
+        },
+        { merge: false }
+      )
+      .then(function () {
+        ui.cloud.lastSyncedAt = payload.meta.lastSavedAt;
+        setCloudStatus(successMessage || "Cloud copy updated.", "success");
+        return true;
+      })
+      .catch(function (error) {
+        setCloudStatus(formatCloudError(error), "error");
+        return false;
+      })
+      .finally(function () {
+        ui.cloud.syncing = false;
+        renderCloudSyncCard();
+        syncTopbar();
+        if (ui.cloud.needsResync) {
+          ui.cloud.needsResync = false;
+          scheduleCloudSync();
+        }
+      });
+  }
+
+  function scheduleCloudSync() {
+    if (!canSyncToCloud() || ui.cloud.isApplyingRemote) {
+      return;
+    }
+    window.clearTimeout(ui.cloud.syncTimerId);
+    ui.cloud.syncTimerId = window.setTimeout(function () {
+      syncStateToCloud("Cloud copy updated.");
+    }, CLOUD_SYNC_DEBOUNCE_MS);
+  }
+
+  function canSyncToCloud() {
+    return Boolean(ui.cloud.initialized && ui.cloud.db && ui.cloud.user);
+  }
+
+  function buildSerializableState() {
+    return {
+      settings: normalizeSettings(state.settings),
+      meta: normalizeMeta(state.meta),
+      tasks: normalizeTasks(state.tasks),
+      activityLog: normalizeActivityLog(state.activityLog),
+    };
+  }
+
+  function normalizeCloudState(rawState) {
+    if (!rawState || typeof rawState !== "object") {
+      return null;
+    }
+    if (!rawState.settings || !rawState.meta || !Array.isArray(rawState.tasks) || !Array.isArray(rawState.activityLog)) {
+      return null;
+    }
+    return {
+      settings: normalizeSettings(rawState.settings),
+      meta: normalizeMeta(rawState.meta),
+      tasks: normalizeTasks(rawState.tasks),
+      activityLog: normalizeActivityLog(rawState.activityLog),
+    };
+  }
+
+  function replaceStateFromCloud(nextState) {
+    var theme;
+    ui.cloud.isApplyingRemote = true;
+    state = {
+      settings: normalizeSettings(nextState.settings),
+      meta: normalizeMeta(nextState.meta),
+      tasks: normalizeTasks(nextState.tasks),
+      activityLog: normalizeActivityLog(nextState.activityLog),
+    };
+    theme = ["day", "night", "hongkong"].indexOf(state.settings.theme) >= 0 ? state.settings.theme : "day";
+    state.settings.theme = theme;
+    if (theme === "hongkong" && !isHongKongWeatherSelected()) {
+      applyHongKongWeatherPreset();
+    }
+    ui.selectedDate = normalizeDate(state.meta.selectedDate) || todayIso();
+    ui.weekAnchor = startOfWeek(ui.selectedDate);
+    document.body.setAttribute("data-theme", theme);
+    elements.themeButtons.forEach(function (button) {
+      var isActive = button.getAttribute("data-theme-option") === theme;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    renderAll();
+    refreshWeather();
+    ui.cloud.isApplyingRemote = false;
+  }
+
+  function compareStateFreshness(localState, cloudState) {
+    var localSavedAt = new Date(localState.meta && localState.meta.lastSavedAt).getTime() || 0;
+    var cloudSavedAt = new Date(cloudState.meta && cloudState.meta.lastSavedAt).getTime() || 0;
+    if (cloudSavedAt > localSavedAt) {
+      return "remote";
+    }
+    if (localSavedAt > cloudSavedAt) {
+      return "local";
+    }
+    return "equal";
+  }
+
+  function cloudDocRef(user) {
+    return ui.cloud.db.collection(CLOUD_COLLECTION).doc(user.uid);
+  }
+
+  function setCloudStatus(message, statusState) {
+    ui.cloud.status = message;
+    ui.cloud.statusState = statusState || "neutral";
+    renderCloudSyncCard();
+    syncTopbar();
+  }
+
+  function formatCloudError(error) {
+    var knownMessages = {
+      "auth/email-already-in-use": "That email is already in use. Log in instead, or use a different email.",
+      "auth/invalid-email": "Enter a valid email address.",
+      "auth/user-not-found": "No cloud account exists for that email yet.",
+      "auth/wrong-password": "Wrong password for that email address.",
+      "auth/weak-password": "Password must be at least 6 characters.",
+      "auth/network-request-failed": "Network request failed. Check your internet connection and try again.",
+      "permission-denied": "Firestore rules blocked this request. Check the rules in the README.",
+      "failed-precondition": "Create the Firestore database in Firebase console before using cloud sync.",
+    };
+    if (error && error.code && knownMessages[error.code]) {
+      return knownMessages[error.code];
+    }
+    var message = error && error.message ? error.message : "Unexpected cloud sync error.";
+    return message
+      .replace(/^Firebase:\s*/i, "")
+      .replace(/\s+\((auth|firestore)\/[^)]+\)\.?$/i, "")
+      .trim();
+  }
+
   function loadState() {
     try {
       var raw = window.localStorage.getItem(STORAGE_KEY);
@@ -1480,6 +1990,9 @@
     state.meta.lastSavedAt = new Date().toISOString();
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     syncTopbar();
+    if (!ui.cloud.isApplyingRemote) {
+      scheduleCloudSync();
+    }
   }
 
   function createInitialState() {
