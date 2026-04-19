@@ -131,7 +131,9 @@
     subtaskList: document.getElementById("subtaskList"),
     subtaskTemplate: document.getElementById("subtaskTemplate"),
     cloudSyncBadge: document.getElementById("cloudSyncBadge"),
+    cloudConfigBlock: document.getElementById("cloudConfigBlock"),
     cloudConfigInput: document.getElementById("cloudConfigInput"),
+    cloudConfigHint: document.getElementById("cloudConfigHint"),
     cloudEmailInput: document.getElementById("cloudEmailInput"),
     cloudPasswordInput: document.getElementById("cloudPasswordInput"),
     saveCloudConfigBtn: document.getElementById("saveCloudConfigBtn"),
@@ -165,7 +167,7 @@
       auth: null,
       db: null,
       lastSyncedAt: null,
-      status: "Local-only mode. Add Firebase config to turn on free sync.",
+      status: "Cloud sync ready. Log in to sync this dashboard across devices.",
       statusState: "neutral",
       syncTimerId: null,
       isApplyingRemote: false,
@@ -1549,7 +1551,9 @@
       ui.cloud.auth = window.firebase.auth();
       ui.cloud.db = window.firebase.firestore();
       ui.cloud.initialized = true;
-      ui.cloud.status = "Cloud configured. Sign in to sync this dashboard across devices.";
+      ui.cloud.status = hasBundledCloudConfig()
+        ? "Built-in cloud config loaded. Log in to sync this dashboard across devices."
+        : "Cloud configured. Sign in to sync this dashboard across devices.";
       ui.cloud.statusState = "success";
       if (window.firebase.auth && window.firebase.auth.Auth.Persistence) {
         ui.cloud.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL).catch(function () {
@@ -1567,13 +1571,20 @@
   }
 
   function populateCloudConfigInput() {
-    var rawConfig = window.localStorage.getItem(FIREBASE_CONFIG_KEY) || "";
+    var bundledConfig = getBundledCloudConfig();
+    var rawConfig = bundledConfig
+      ? JSON.stringify(bundledConfig, null, 2)
+      : window.localStorage.getItem(FIREBASE_CONFIG_KEY) || "";
     if (elements.cloudConfigInput) {
       elements.cloudConfigInput.value = rawConfig;
     }
   }
 
   function loadCloudConfig() {
+    var bundledConfig = getBundledCloudConfig();
+    if (bundledConfig) {
+      return bundledConfig;
+    }
     var rawConfig = window.localStorage.getItem(FIREBASE_CONFIG_KEY);
     if (!rawConfig) {
       return null;
@@ -1581,12 +1592,27 @@
     return parseFirebaseConfig(rawConfig);
   }
 
+  function getBundledCloudConfig() {
+    if (!window.WORK_DASHBOARD_FIREBASE_CONFIG) {
+      return null;
+    }
+    return parseFirebaseConfig(window.WORK_DASHBOARD_FIREBASE_CONFIG);
+  }
+
+  function hasBundledCloudConfig() {
+    return Boolean(window.WORK_DASHBOARD_FIREBASE_CONFIG);
+  }
+
   function parseFirebaseConfig(rawConfig) {
     var parsed;
-    try {
-      parsed = JSON.parse(rawConfig);
-    } catch (error) {
-      throw new Error("Firebase config is not valid JSON. Paste the full config object from the Firebase console.");
+    if (typeof rawConfig === "string") {
+      try {
+        parsed = JSON.parse(rawConfig);
+      } catch (error) {
+        throw new Error("Firebase config is not valid JSON. Paste the full config object from the Firebase console.");
+      }
+    } else {
+      parsed = rawConfig;
     }
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new Error("Firebase config must be a JSON object.");
@@ -1606,6 +1632,7 @@
       return;
     }
 
+    var usingBuiltInConfig = hasBundledCloudConfig();
     var signedIn = Boolean(ui.cloud.user);
     var badgeLabel = "LOCAL ONLY";
     var badgeState = "neutral";
@@ -1628,12 +1655,18 @@
     elements.cloudSyncBadge.dataset.state = badgeState;
     elements.cloudSyncStatus.textContent = ui.cloud.status;
     elements.cloudSyncStatus.dataset.state = ui.cloud.statusState || "neutral";
+    if (elements.cloudConfigBlock) {
+      elements.cloudConfigBlock.hidden = usingBuiltInConfig;
+    }
+    if (elements.cloudConfigHint) {
+      elements.cloudConfigHint.hidden = !usingBuiltInConfig;
+    }
     elements.cloudSyncNowBtn.hidden = !signedIn;
     elements.cloudSignOutBtn.hidden = !signedIn;
     elements.cloudSignUpBtn.hidden = signedIn;
     elements.cloudSignInBtn.hidden = signedIn;
-    elements.cloudConfigInput.disabled = ui.cloud.syncing;
-    elements.saveCloudConfigBtn.disabled = ui.cloud.syncing;
+    elements.cloudConfigInput.disabled = usingBuiltInConfig || ui.cloud.syncing;
+    elements.saveCloudConfigBtn.disabled = usingBuiltInConfig || ui.cloud.syncing;
     elements.cloudEmailInput.disabled = !ui.cloud.initialized || signedIn || ui.cloud.syncing;
     elements.cloudPasswordInput.disabled = !ui.cloud.initialized || signedIn || ui.cloud.syncing;
     elements.cloudSignUpBtn.disabled = !ui.cloud.initialized || ui.cloud.syncing;
@@ -1643,6 +1676,10 @@
   }
 
   function handleCloudConfigSave() {
+    if (hasBundledCloudConfig()) {
+      setCloudStatus("This dashboard already has built-in cloud config. Just log in on this device.", "success");
+      return;
+    }
     var rawConfig = elements.cloudConfigInput.value.trim();
     if (!rawConfig) {
       window.localStorage.removeItem(FIREBASE_CONFIG_KEY);
@@ -1759,7 +1796,9 @@
         elements.cloudPasswordInput.value = "";
         setCloudStatus(
           ui.cloud.initialized
-            ? "Cloud configured. Sign in to sync this dashboard across devices."
+            ? hasBundledCloudConfig()
+              ? "Built-in cloud config loaded. Log in to sync this dashboard across devices."
+              : "Cloud configured. Sign in to sync this dashboard across devices."
             : "Local-only mode. Add Firebase config to turn on free sync.",
           ui.cloud.initialized ? "success" : "neutral"
         );

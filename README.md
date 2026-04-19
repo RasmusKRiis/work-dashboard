@@ -10,6 +10,7 @@ A dependency-free dashboard inspired by the supplied reference image, focused on
 - Separate statistics view with four live modules based on your saved task and completion data.
 - Three theme modes in the header: `Day`, `Night`, and `Hong Kong`.
 - Optional free cross-device sync using Firebase Authentication + Cloud Firestore.
+- This repo can ship with a built-in Firebase web config so devices only need the URL plus login credentials.
 - Local persistence in `localStorage`.
 - JSON export and import so the full session can be downloaded and restored later.
 - Weather side panel powered by Open-Meteo, with editable location lookup.
@@ -115,13 +116,12 @@ If you are testing locally on a small server, `localhost` is usually already all
 ### 7. Connect the dashboard
 
 1. Run the dashboard on `http://localhost:8080` or open your deployed GitHub Pages URL.
-2. In the `Cloud Sync` card, paste the Firebase config JSON.
-3. Click `Save config`.
-4. The page reloads.
-5. Enter your email and password.
-6. Click `Sign up` the first time.
-7. On later devices, use the same email and password with `Log in`.
-8. After login, the app will compare local data and cloud data and keep the newer copy.
+2. If the repo includes [firebase-config.js](/Users/rasmuskopperudriis/Coding/projects/work_dashboard/firebase-config.js), the project config is already built in and you can skip straight to login.
+3. If you are not using a built-in config file, paste the Firebase config JSON into the `Cloud Sync` card and click `Save config`.
+4. Enter your email and password.
+5. Click `Sign up` the first time.
+6. On later devices, use the same email and password with `Log in`.
+7. After login, the app will compare local data and cloud data and keep the newer copy.
 
 ### 8. Daily usage
 
@@ -156,6 +156,6 @@ Use the `Download JSON` button to save your current session. The exported file i
 - Completion history used by the statistics page
 - Dashboard settings such as weather location
 
-It does not include your Firebase config or login session.
+It does not include your login session. Firebase config can now either be bundled in [firebase-config.js](/Users/rasmuskopperudriis/Coding/projects/work_dashboard/firebase-config.js) or entered manually per browser.
 
 Use `Upload JSON` to restore that state after browser storage is cleared.

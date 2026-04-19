@@ -138,15 +138,23 @@
                       </div>
                       <span class="cloud-sync-card__badge" id="cloudSyncBadge">LOCAL ONLY</span>
                     </div>
-                    <label class="task-dialog__field">
-                      <span>Firebase config JSON</span>
-                      <textarea
-                        class="cloud-sync-card__config"
-                        id="cloudConfigInput"
-                        rows="5"
-                        placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'
-                      ></textarea>
-                    </label>
+                    <div class="cloud-sync-card__config-block" id="cloudConfigBlock">
+                      <label class="task-dialog__field">
+                        <span>Firebase config JSON</span>
+                        <textarea
+                          class="cloud-sync-card__config"
+                          id="cloudConfigInput"
+                          rows="5"
+                          placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'
+                        ></textarea>
+                      </label>
+                      <button class="button button--ghost" id="saveCloudConfigBtn" type="button">
+                        Save config
+                      </button>
+                    </div>
+                    <p class="cloud-sync-card__hint" id="cloudConfigHint" hidden>
+                      Project cloud config is already built in. Log in on this device with your email and password.
+                    </p>
                     <div class="cloud-sync-card__grid">
                       <label class="task-dialog__field">
                         <span>Email</span>
@@ -168,9 +176,6 @@
                       </label>
                     </div>
                     <div class="cloud-sync-card__actions">
-                      <button class="button button--ghost" id="saveCloudConfigBtn" type="button">
-                        Save config
-                      </button>
                       <button class="button" id="cloudSignUpBtn" type="button">Sign up</button>
                       <button class="button button--dark" id="cloudSignInBtn" type="button">
                         Log in
@@ -398,6 +403,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js" defer></script>
+    <script src="firebase-config.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>

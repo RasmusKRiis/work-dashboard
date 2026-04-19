@@ -681,6 +681,22 @@ body[data-theme="hongkong"] .operator-card__monogram {
   line-height: 1.45;
 }
 
+.cloud-sync-card__config-block {
+  display: grid;
+  gap: 10px;
+}
+
+.cloud-sync-card__hint {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-card-alt);
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .cloud-sync-card__grid,
 .cloud-sync-card__actions {
   display: grid;
