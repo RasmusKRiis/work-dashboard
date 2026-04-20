@@ -152,6 +152,7 @@
   var ui = {
     selectedDate: normalizeDate(state.meta.selectedDate) || todayIso(),
     weekAnchor: startOfWeek(normalizeDate(state.meta.selectedDate) || todayIso()),
+    todayKey: todayIso(),
     activeView: "dashboard",
     weather: null,
     weatherStatus: "Loading weather",
@@ -977,6 +978,11 @@
 
   function updateClock() {
     var now = new Date();
+    var todayKey = toLocalDateKey(now);
+    if (ui.todayKey !== todayKey) {
+      ui.todayKey = todayKey;
+      handleDayRollover(todayKey);
+    }
     elements.clockTime.textContent = now.toLocaleTimeString(getDisplayLocale(), {
       hour: "2-digit",
       minute: "2-digit",
@@ -1528,12 +1534,12 @@
       try {
         var parsed = JSON.parse(loadEvent.target.result);
         validateImportedState(parsed);
-        state = {
+        state = migrateLoadedState({
           settings: normalizeSettings(parsed.settings),
           meta: normalizeMeta(parsed.meta),
           tasks: normalizeTasks(parsed.tasks),
           activityLog: normalizeActivityLog(parsed.activityLog),
-        };
+        });
         ui.selectedDate = normalizeDate(state.meta.selectedDate) || todayIso();
         ui.weekAnchor = startOfWeek(ui.selectedDate);
         saveState();
@@ -1921,6 +1927,7 @@
   }
 
   function replaceStateFromCloud(nextState) {
+    var rolledForward;
     var theme;
     ui.cloud.isApplyingRemote = true;
     state = {
@@ -1929,6 +1936,7 @@
       tasks: normalizeTasks(nextState.tasks),
       activityLog: normalizeActivityLog(nextState.activityLog),
     };
+    rolledForward = rollForwardOpenTasks(state, todayIso());
     theme = ["day", "night", "hongkong"].indexOf(state.settings.theme) >= 0 ? state.settings.theme : "day";
     state.settings.theme = theme;
     if (theme === "hongkong" && !isHongKongWeatherSelected()) {
@@ -1946,6 +1954,9 @@
     renderAll();
     refreshWeather();
     ui.cloud.isApplyingRemote = false;
+    if (rolledForward) {
+      scheduleCloudSync();
+    }
   }
 
   function compareStateFreshness(localState, cloudState) {
@@ -2048,6 +2059,16 @@
     }
   }
 
+  function handleDayRollover(todayKey) {
+    if (!rollForwardOpenTasks(state, todayKey)) {
+      return;
+    }
+    ui.selectedDate = normalizeDate(state.meta.selectedDate) || todayKey;
+    ui.weekAnchor = startOfWeek(ui.selectedDate);
+    saveState();
+    renderAll();
+  }
+
   function createInitialState() {
     var today = todayIso();
     var createdAt = new Date().toISOString();
@@ -2079,7 +2100,40 @@
       loadedState.activityLog = [];
       loadedState.meta.selectedDate = todayIso();
     }
+    rollForwardOpenTasks(loadedState, todayIso());
     return loadedState;
+  }
+
+  function rollForwardOpenTasks(nextState, referenceDate) {
+    var changed = false;
+    var targetDate = normalizeDate(referenceDate) || todayIso();
+    var rolledAt = new Date().toISOString();
+
+    if (!nextState || !Array.isArray(nextState.tasks) || !nextState.meta) {
+      return false;
+    }
+
+    nextState.tasks = nextState.tasks
+      .map(function (task) {
+        if (!task || task.status === "done" || !normalizeDate(task.date) || task.date >= targetDate) {
+          return task;
+        }
+        changed = true;
+        return Object.assign({}, task, {
+          date: targetDate,
+          updatedAt: rolledAt,
+        });
+      })
+      .sort(compareTasks);
+
+    if (changed) {
+      if (!normalizeDate(nextState.meta.selectedDate) || nextState.meta.selectedDate < targetDate) {
+        nextState.meta.selectedDate = targetDate;
+      }
+      nextState.meta.lastSavedAt = rolledAt;
+    }
+
+    return changed;
   }
 
   function shouldClearLegacyDemoState(loadedState) {
